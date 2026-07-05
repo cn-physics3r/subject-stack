@@ -2,12 +2,14 @@
   <div id="app">
     <Capsule />
     <DateTimeCapsule />
+    <CardStack />
   </div>
 </template>
 
 <script setup>
 import Capsule from './components/Capsule.vue'
 import DateTimeCapsule from './components/DateTimeCapsule.vue'
+import CardStack from './components/CardStack.vue'
 </script>
 
 <style>
