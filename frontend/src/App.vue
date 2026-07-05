@@ -1,9 +1,13 @@
 <template>
   <div id="app">
+    <Capsule />
+    <DateTimeCapsule />
   </div>
 </template>
 
 <script setup>
+import Capsule from './components/Capsule.vue'
+import DateTimeCapsule from './components/DateTimeCapsule.vue'
 </script>
 
 <style>
