@@ -1,11 +1,11 @@
 <template>
   <div class="card">
     <div class="card-header" @click="$emit('toggle-expand')">
-      <span class="drag-handle">&#x283F;</span>
+      <span class="drag-handle" @click.stop>&#x283F;</span>
       <span class="card-title">{{ card.title }}</span>
       <span class="expand-icon">{{ card.expanded ? '−' : '+' }}</span>
     </div>
-    <div class="card-body" :style="{ maxHeight: card.expanded ? h + 'px' : '0' }">
+    <div ref="bodyEl" class="card-body">
       <div ref="contentEl" class="card-body-inner">
         <p v-for="i in 3" :key="i">
           这是 {{ card.title }} 的占位内容。可拖拽手柄（⠿）调整卡片顺序。
@@ -16,19 +16,31 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 
-defineProps({
+const props = defineProps({
   card: { type: Object, required: true }
 })
 
 defineEmits(['toggle-expand'])
 
+const bodyEl = ref(null)
 const contentEl = ref(null)
-const h = ref(0)
+let resizeObserver = null
 
 onMounted(() => {
-  h.value = contentEl.value?.scrollHeight ?? 0
+  if (contentEl.value && typeof ResizeObserver !== 'undefined') {
+    resizeObserver = new ResizeObserver(() => {
+      if (props.card.expanded && bodyEl.value) {
+        bodyEl.value.style.height = (contentEl.value?.scrollHeight ?? 0) + 'px'
+      }
+    })
+    resizeObserver.observe(contentEl.value)
+  }
+})
+
+onUnmounted(() => {
+  resizeObserver?.disconnect()
 })
 </script>
 
@@ -42,6 +54,7 @@ onMounted(() => {
   border: 0.5px solid rgba(255, 255, 255, 0.25);
   overflow: hidden;
   user-select: none;
+  flex-shrink: 0;
 }
 
 .card-header {
@@ -80,7 +93,7 @@ onMounted(() => {
 
 .card-body {
   overflow: hidden;
-  transition: max-height 0.35s ease;
+  height: 0;
 }
 
 .card-body-inner {

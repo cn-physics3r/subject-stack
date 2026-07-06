@@ -2,29 +2,61 @@
 
 ## 项目概述
 
-Vue 3 + Vite 前端项目，包管理器为 pnpm。
-
-## 目录结构
-
-- `frontend/` — 应用根目录
-- `frontend/src/` — 源码入口
-- `frontend/public/` — 静态资源（如背景图片），通过绝对路径 `/xxx` 引用
+Vue 3 + Vite 前端项目，包管理器 pnpm。无路由、无 TypeScript、无 ESLint、无测试框架。
 
 ## 常用命令
 
 所有命令在 `frontend/` 目录下执行：
 
 ```bash
-pnpm dev        # 启动开发服务器，默认端口 5173
-pnpm build      # 生产构建
-pnpm preview    # 预览生产构建
+pnpm dev       # 开发服务器，端口 5173
+pnpm build     # 生产构建
+pnpm install   # 安装依赖
 ```
 
-安装依赖：`pnpm install`（在 `frontend/` 下执行）
+## 架构要点
 
-## 注意事项
+- 组件树扁平：`App.vue` 平铺 4 个子组件（`Capsule` / `DateTimeCapsule` / `CardStack` / `AnimationControl`），无嵌套路由，无状态管理库
+- 拖拽排序依赖 `vuedraggable@4`（封装 SortableJS），是唯一的非框架依赖
+- 卡片堆用 `flex-flow: column wrap` 实现多列瀑布式排列，**不是 grid**
+- 公共静态资源放 `frontend/public/`，代码中通过绝对路径引用（如 `/background.jpg`）
 
-- 背景图 `background.jpg` 放在 `public/` 目录，CSS 中用 `/background.jpg` 引用
-- App.vue 使用 `::before` 伪元素实现白色半透明磨砂覆盖层
-- 没有配置 ESLint、TypeScript、测试框架
-- 没有路由（vue-router 未安装）
+## 关键实现细节（改动时需注意）
+
+### config.json 跨目录引用
+`Capsule.vue` 通过 `import cfg from '../../../config.json'` 读取根目录的 `config.json`（含应用名和版本号）。Vite 开发服务器能读上级目录，靠 `vite.config.js` 中的 `server.fs.allow: ['..']`。如果构建时报 fs 权限错误，检查这个配置。
+
+### 组件间动画时长联动（CSS 变量 + MutationObserver）
+`App.vue` 在 `#app` 上定义 `--anim-duration: 350ms`。`AnimationControl` 滑块通过 `document.documentElement.style.setProperty` 直接改写该变量。`CardStack` 用 `MutationObserver` 监听 `<html>` 的 `style` 属性变化，同步更新 vuedraggable 的 `:animation` 属性——**这是一个隐式跨组件通信通道**，没有用 props/provide/eventBus。
+
+### FLIP 展开/收起动画（CardStack.vue:160-197）
+点击卡片标题触发展开/收起时，下方卡片会平滑滑到新位置。`toggleExpand` 手动实现了 FLIP：
+1. `captureRects()` 记录所有卡片的当前位置
+2. `measureFinalRects()` 临时将 body 高度设为目标值、强制 reflow、读取最终位置后恢复
+3. `animateHeightAndFLIP()` 用 `requestAnimationFrame` 同时驱动 body 高度补间和卡片 transform 位移补偿
+4. 动画未完成时再次触发会先 `cancelAnimationFrame`，将上一个 body 强制跳到终态然后开新动画
+
+### 拖拽与点击的隔离
+拖拽手柄 `.drag-handle` 上有 `@click.stop` 阻止冒泡。此外 `onDragEnd` 后置 `suppressClick = true`，50ms 后解除——**拖拽松手时常会伴随一个 click 事件**，这个 supressClick 防止该 click 误触发卡片展开。如果修改拖拽或点击逻辑，这个机制容易被遗漏。
+
+### 毛玻璃样式统一范式
+所有胶囊（Capsule / DateTimeCapsule / AnimationControl）和卡片（CardItem）共用同一套风格：
+```css
+background: rgba(255,255,255,0.15~0.2);
+backdrop-filter: blur(12~20px);
+border-radius: 999px; /* 胶囊用 */
+border: 0.5px solid rgba(255,255,255,0.25~0.35);
+```
+App.vue 用 `::before` 伪元素 + `rgba(255,255,255,0.3)` + `blur(10px)` 做全屏磨砂罩。新增 UI 应沿用此风格。
+
+### CardItem 内容自适应
+`CardItem.vue` 用 `ResizeObserver` 监听 `.card-body-inner`，当卡片处于展开态且内容高度变化时，自动更新 `body.style.height` 为 `scrollHeight`。
+
+### 时间胶囊
+`DateTimeCapsule.vue` 每秒 `setInterval` 刷新，格式 `MM/DD | HH:MM:SS`。组件卸载时 `clearInterval`。
+
+## 特别注意
+
+- **没有 lint/typecheck/test 命令**，提交前只能靠 `pnpm build` 验证编译通过
+- `pnpm-workspace.yaml` 仅含 `allowBuilds: {esbuild: true}`，为 Vite 在 Windows 上预构建依赖所需
+- `vue` 和 `vuedraggable` 已预构建在 `node_modules/.vite/deps/` 中，修改依赖版本后需删掉该目录让 Vite 重建
