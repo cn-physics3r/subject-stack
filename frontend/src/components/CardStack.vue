@@ -11,7 +11,7 @@
     class="card-stack"
   >
     <template #item="{ element }">
-      <CardItem :card="element" @toggle-expand="toggleExpand(element.id)" />
+      <CardItem :card="element" :is-animating="isAnimating" @toggle-expand="toggleExpand(element.id)" />
     </template>
   </draggable>
 </template>
@@ -31,10 +31,22 @@ const cards = ref(
 )
 
 const stackRef = ref(null)
-const { duration: animDuration, isAnimating } = useAnimationDuration()
+const { duration: animDuration } = useAnimationDuration()
+const isAnimating = ref(false)
 let suppressClick = false
 let suppressTimer = null
 let activeAnim = null
+
+function cancelActiveAnim() {
+  if (!activeAnim) return
+  cancelAnimationFrame(activeAnim.raf)
+  if (activeAnim.targetEl && activeAnim.toH != null) {
+    const prevBody = activeAnim.targetEl.querySelector('.card-body')
+    if (prevBody) prevBody.style.height = activeAnim.toH + 'px'
+  }
+  activeAnim = null
+  isAnimating.value = false
+}
 
 onUnmounted(() => {
   if (activeAnim) cancelAnimationFrame(activeAnim.raf)
@@ -42,15 +54,7 @@ onUnmounted(() => {
 })
 
 function onDragStart() {
-  if (activeAnim) {
-    cancelAnimationFrame(activeAnim.raf)
-    if (activeAnim.targetEl && activeAnim.toH != null) {
-      const prevBody = activeAnim.targetEl.querySelector('.card-body')
-      if (prevBody) prevBody.style.height = activeAnim.toH + 'px'
-    }
-    activeAnim = null
-    isAnimating.value = false
-  }
+  cancelActiveAnim()
   getCards().forEach(el => { el.style.transition = ''; el.style.transform = '' })
 }
 
@@ -184,20 +188,11 @@ function toggleExpand(id) {
   const inner = targetEl.querySelector('.card-body-inner')
   if (!body || !inner) return
 
-  if (activeAnim) {
-    cancelAnimationFrame(activeAnim.raf)
-    if (activeAnim.targetEl && activeAnim.toH != null) {
-      const prevBody = activeAnim.targetEl.querySelector('.card-body')
-      if (prevBody) prevBody.style.height = activeAnim.toH + 'px'
-    }
-    activeAnim = null
-    isAnimating.value = false
-    getCards().forEach(el => { el.style.transition = ''; el.style.transform = '' })
-  }
+  cancelActiveAnim()
 
   const prevRects = captureRects()
-  const targetHeight = inner.scrollHeight || 0
-  const currentHeight = body.offsetHeight || 0
+  const targetHeight = inner.scrollHeight
+  const currentHeight = body.offsetHeight
 
   if (card.expanded) {
     card.expanded = false

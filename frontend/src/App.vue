@@ -35,6 +35,7 @@ html, body, #app {
   background-position: center;
   background-repeat: no-repeat;
   position: relative;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 }
 
 #app::before {
@@ -48,5 +49,15 @@ html, body, #app {
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   z-index: 0;
+}
+
+.capsule-base {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 0.5px solid rgba(255, 255, 255, 0.35);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+  user-select: none;
 }
 </style>

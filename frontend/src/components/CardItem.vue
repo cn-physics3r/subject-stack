@@ -17,15 +17,13 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
-import { useAnimationDuration } from '../composables/useAnimationDuration'
 
 const props = defineProps({
-  card: { type: Object, required: true }
+  card: { type: Object, required: true },
+  isAnimating: Boolean
 })
 
 defineEmits(['toggle-expand'])
-
-const { isAnimating } = useAnimationDuration()
 
 const bodyEl = ref(null)
 const contentEl = ref(null)
@@ -34,7 +32,7 @@ let resizeObserver = null
 onMounted(() => {
   if (contentEl.value && typeof ResizeObserver !== 'undefined') {
     resizeObserver = new ResizeObserver(() => {
-      if (!isAnimating.value && props.card.expanded && bodyEl.value) {
+      if (!props.isAnimating && props.card.expanded && bodyEl.value) {
         bodyEl.value.style.height = (contentEl.value?.scrollHeight ?? 0) + 'px'
       }
     })

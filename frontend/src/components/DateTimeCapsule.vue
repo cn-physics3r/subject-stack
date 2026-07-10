@@ -1,5 +1,5 @@
 <template>
-  <div class="capsule">
+  <div class="capsule capsule-base">
     <span class="date">{{ dateStr }}</span>
     <span class="separator">|</span>
     <span class="time">{{ timeStr }}</span>
@@ -21,15 +21,15 @@ function update() {
   const now = new Date()
   dateStr.value = `${pad(now.getMonth() + 1)}/${pad(now.getDate())}`
   timeStr.value = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`
+  timer = setTimeout(update, 1000 - now.getMilliseconds())
 }
 
 onMounted(() => {
   update()
-  timer = setInterval(update, 1000)
 })
 
 onUnmounted(() => {
-  clearInterval(timer)
+  clearTimeout(timer)
 })
 </script>
 
@@ -43,14 +43,6 @@ onUnmounted(() => {
   align-items: center;
   gap: 14px;
   padding: 9px 28px 11px 28px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.2);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 0.5px solid rgba(255, 255, 255, 0.35);
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  user-select: none;
 }
 
 .date {

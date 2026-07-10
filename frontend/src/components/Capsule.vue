@@ -1,5 +1,5 @@
 <template>
-  <div class="capsule">
+  <div class="capsule capsule-base">
     <span class="name">{{ config.name }}</span>
     <span class="separator">|</span>
     <span class="version">{{ config.version }}</span>
@@ -7,9 +7,7 @@
 </template>
 
 <script setup>
-import cfg from '../../../config.json'
-
-const config = cfg
+import config from 'virtual:app-config'
 </script>
 
 <style scoped>
@@ -22,14 +20,6 @@ const config = cfg
   align-items: center;
   gap: 14px;
   padding: 9px 28px 11px 28px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.2);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 0.5px solid rgba(255, 255, 255, 0.35);
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  user-select: none;
 }
 
 .name {
