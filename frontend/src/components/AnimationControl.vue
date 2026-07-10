@@ -14,20 +14,13 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { useAnimationDuration } from '../composables/useAnimationDuration'
 
-const duration = ref(350)
-
-function apply() {
-  document.documentElement.style.setProperty('--anim-duration', `${duration.value}ms`)
-}
+const { duration, setDuration } = useAnimationDuration()
 
 function onInput(e) {
-  duration.value = Number(e.target.value)
-  apply()
+  setDuration(Number(e.target.value))
 }
-
-onMounted(apply)
 </script>
 
 <style scoped>

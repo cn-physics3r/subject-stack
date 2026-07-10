@@ -12,6 +12,9 @@ import Capsule from './components/Capsule.vue'
 import DateTimeCapsule from './components/DateTimeCapsule.vue'
 import CardStack from './components/CardStack.vue'
 import AnimationControl from './components/AnimationControl.vue'
+import { createAnimationState } from './composables/useAnimationDuration'
+
+createAnimationState()
 </script>
 
 <style>
@@ -32,7 +35,6 @@ html, body, #app {
   background-position: center;
   background-repeat: no-repeat;
   position: relative;
-  --anim-duration: 350ms;
 }
 
 #app::before {

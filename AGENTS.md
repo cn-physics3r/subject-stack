@@ -26,8 +26,8 @@ pnpm install   # 安装依赖
 ### config.json 跨目录引用
 `Capsule.vue` 通过 `import cfg from '../../../config.json'` 读取根目录的 `config.json`（含应用名和版本号）。Vite 开发服务器能读上级目录，靠 `vite.config.js` 中的 `server.fs.allow: ['..']`。如果构建时报 fs 权限错误，检查这个配置。
 
-### 组件间动画时长联动（CSS 变量 + MutationObserver）
-`App.vue` 在 `#app` 上定义 `--anim-duration: 350ms`。`AnimationControl` 滑块通过 `document.documentElement.style.setProperty` 直接改写该变量。`CardStack` 用 `MutationObserver` 监听 `<html>` 的 `style` 属性变化，同步更新 vuedraggable 的 `:animation` 属性——**这是一个隐式跨组件通信通道**，没有用 props/provide/eventBus。
+### 组件间动画时长联动（composable provide/inject）
+`App.vue` 在 `<script setup>` 中调用 `createAnimationState()`，通过 Vue 的 `provide` 向子孙组件注入共享的 `duration` / `isAnimating` ref 和 `setDuration` 方法。各子组件通过 `useAnimationDuration()` composable 以 `inject` 获取同一份状态——**这是一个基于 Vue DI 的隐式跨组件通信通道**，没有用 props/eventBus。
 
 ### FLIP 展开/收起动画（CardStack.vue:160-197）
 点击卡片标题触发展开/收起时，下方卡片会平滑滑到新位置。`toggleExpand` 手动实现了 FLIP：
