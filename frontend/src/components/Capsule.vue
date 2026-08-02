@@ -40,4 +40,12 @@ import config from 'virtual:app-config'
   font-weight: 400;
   color: rgba(255, 255, 255, 0.7);
 }
+
+@media (max-width: 640px) {
+  .capsule {
+    top: 12px;
+    left: 16px;
+    padding: 7px 18px 9px;
+  }
+}
 </style>

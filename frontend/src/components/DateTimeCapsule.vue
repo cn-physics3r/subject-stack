@@ -63,4 +63,13 @@ onUnmounted(() => {
   letter-spacing: 0.3px;
   color: rgba(255, 255, 255, 0.95);
 }
+
+@media (max-width: 640px) {
+  .capsule {
+    top: 58px;
+    right: auto;
+    left: 16px;
+    padding: 7px 18px 9px;
+  }
+}
 </style>

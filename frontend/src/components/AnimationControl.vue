@@ -1,7 +1,8 @@
 <template>
   <div class="anim-control capsule-base">
-    <span class="label">动画速度</span>
+    <label class="label" for="animation-duration">动画速度</label>
     <input
+      id="animation-duration"
       type="range"
       min="50"
       max="1500"
@@ -83,5 +84,25 @@ input[type="range"]::-moz-range-thumb {
   border: 0.5px solid rgba(255, 255, 255, 0.6);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
   cursor: pointer;
+}
+
+input[type="range"]:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.9);
+  outline-offset: 5px;
+}
+
+@media (max-width: 640px) {
+  .anim-control {
+    bottom: 12px;
+    width: calc(100% - 32px);
+    gap: 10px;
+    padding: 10px 16px;
+  }
+
+  input[type="range"] {
+    flex: 1;
+    min-width: 0;
+    width: auto;
+  }
 }
 </style>

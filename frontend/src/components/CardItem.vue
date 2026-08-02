@@ -1,11 +1,24 @@
 <template>
   <div class="card">
-    <div class="card-header" @click="$emit('toggle-expand')">
-      <span class="drag-handle" @click.stop>&#x283F;</span>
-      <span class="card-title">{{ card.title }}</span>
-      <span class="expand-icon">{{ card.expanded ? '−' : '+' }}</span>
-    </div>
-    <div ref="bodyEl" class="card-body">
+    <button
+      type="button"
+      class="card-header"
+      :aria-expanded="card.expanded"
+      :aria-controls="bodyId"
+      @click="$emit('toggle-expand')"
+    >
+      <span class="drag-handle" aria-hidden="true" @click.stop>&#x283F;</span>
+      <span :id="titleId" class="card-title">{{ card.title }}</span>
+      <span class="expand-icon" aria-hidden="true">{{ card.expanded ? '−' : '+' }}</span>
+    </button>
+    <div
+      :id="bodyId"
+      ref="bodyEl"
+      class="card-body"
+      role="region"
+      :aria-labelledby="titleId"
+      :aria-hidden="!card.expanded"
+    >
       <div ref="contentEl" class="card-body-inner">
         <p v-for="i in 3" :key="i">
           这是 {{ card.title }} 的占位内容。可拖拽手柄（⠿）调整卡片顺序。
@@ -16,7 +29,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, watch, onMounted, onUnmounted } from 'vue'
 
 const props = defineProps({
   card: { type: Object, required: true },
@@ -27,18 +40,31 @@ defineEmits(['toggle-expand'])
 
 const bodyEl = ref(null)
 const contentEl = ref(null)
+const titleId = `card-title-${props.card.id}`
+const bodyId = `card-body-${props.card.id}`
 let resizeObserver = null
+
+function syncExpandedHeight() {
+  if (!props.card.expanded || !bodyEl.value || !contentEl.value) return
+  bodyEl.value.style.height = contentEl.value.scrollHeight + 'px'
+}
 
 onMounted(() => {
   if (contentEl.value && typeof ResizeObserver !== 'undefined') {
     resizeObserver = new ResizeObserver(() => {
-      if (!props.isAnimating && props.card.expanded && bodyEl.value) {
-        bodyEl.value.style.height = (contentEl.value?.scrollHeight ?? 0) + 'px'
-      }
+      if (!props.isAnimating) syncExpandedHeight()
     })
     resizeObserver.observe(contentEl.value)
   }
 })
+
+watch(
+  () => props.isAnimating,
+  (isAnimating) => {
+    if (!isAnimating) syncExpandedHeight()
+  },
+  { flush: 'post' }
+)
 
 onUnmounted(() => {
   resizeObserver?.disconnect()
@@ -47,7 +73,7 @@ onUnmounted(() => {
 
 <style scoped>
 .card {
-  width: 340px;
+  width: min(340px, calc(100vw - 48px));
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.15);
   backdrop-filter: blur(12px);
@@ -62,8 +88,19 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 10px;
+  width: 100%;
   padding: 14px 18px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
   cursor: pointer;
+}
+
+.card-header:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.9);
+  outline-offset: -3px;
 }
 
 .drag-handle {
@@ -83,6 +120,7 @@ onUnmounted(() => {
   font-size: 15px;
   font-weight: 600;
   color: rgba(255, 255, 255, 0.9);
+  text-align: left;
 }
 
 .expand-icon {
@@ -110,5 +148,11 @@ onUnmounted(() => {
 
 .card-body-inner p:last-child {
   margin-bottom: 0;
+}
+
+@media (max-width: 640px) {
+  .card {
+    width: calc(100vw - 32px);
+  }
 }
 </style>

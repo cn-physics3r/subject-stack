@@ -17,7 +17,7 @@
 </template>
 
 <script setup>
-import { ref, watch, onUnmounted } from 'vue'
+import { ref, onUnmounted } from 'vue'
 import draggable from 'vuedraggable'
 import CardItem from './CardItem.vue'
 import { useAnimationDuration } from '../composables/useAnimationDuration'
@@ -36,14 +36,20 @@ const isAnimating = ref(false)
 let suppressClick = false
 let suppressTimer = null
 let activeAnim = null
+const DRAG_CLICK_GUARD_MS = 100
 
 function cancelActiveAnim() {
   if (!activeAnim) return
-  cancelAnimationFrame(activeAnim.raf)
-  if (activeAnim.targetEl && activeAnim.toH != null) {
-    const prevBody = activeAnim.targetEl.querySelector('.card-body')
-    if (prevBody) prevBody.style.height = activeAnim.toH + 'px'
+  const anim = activeAnim
+  cancelAnimationFrame(anim.raf)
+  if (anim.targetEl && anim.toH != null) {
+    const prevBody = anim.targetEl.querySelector('.card-body')
+    if (prevBody) prevBody.style.height = anim.toH + 'px'
   }
+  anim.targets.forEach(({ el }) => {
+    el.style.transition = ''
+    el.style.transform = ''
+  })
   activeAnim = null
   isAnimating.value = false
 }
@@ -63,12 +69,8 @@ function scheduleSuppressRelease() {
   suppressTimer = setTimeout(() => {
     suppressClick = false
     suppressTimer = null
-  }, animDuration.value)
+  }, DRAG_CLICK_GUARD_MS)
 }
-
-watch(animDuration, () => {
-  if (suppressClick) scheduleSuppressRelease()
-})
 
 function onDragEnd() {
   suppressClick = true
@@ -112,7 +114,7 @@ function animateHeightAndFLIP(targetEl, fromH, toH, prevRects, finalRects) {
   const body = targetEl.querySelector('.card-body')
   if (!body) return
 
-  if (activeAnim) cancelAnimationFrame(activeAnim.raf)
+  if (activeAnim) cancelActiveAnim()
 
   const duration = animDuration.value
   const start = performance.now()
@@ -147,14 +149,19 @@ function animateHeightAndFLIP(targetEl, fromH, toH, prevRects, finalRects) {
     body.style.height = (fromH + (toH - fromH) * e) + 'px'
     void container.offsetHeight
 
-    targets.forEach((tg) => {
+    const currentRects = targets.map(({ el }) => el.getBoundingClientRect())
+
+    targets.forEach((tg, i) => {
       const desiredLeft = tg.prevLeft + (tg.finalLeft - tg.prevLeft) * e
       const desiredTop = tg.prevTop + (tg.finalTop - tg.prevTop) * e
-      const cur = tg.el.getBoundingClientRect()
+      const cur = currentRects[i]
       const naturalLeft = cur.left - tg.currentTx
       const naturalTop = cur.top - tg.currentTy
       tg.currentTx = desiredLeft - naturalLeft
       tg.currentTy = desiredTop - naturalTop
+    })
+
+    targets.forEach((tg) => {
       tg.el.style.transform = `translate(${tg.currentTx}px, ${tg.currentTy}px)`
     })
 
@@ -171,7 +178,7 @@ function animateHeightAndFLIP(targetEl, fromH, toH, prevRects, finalRects) {
     }
   }
 
-  activeAnim = { raf: requestAnimationFrame(frame), targetEl, toH }
+  activeAnim = { raf: requestAnimationFrame(frame), targetEl, toH, targets }
 }
 
 function toggleExpand(id) {
@@ -216,9 +223,24 @@ function toggleExpand(id) {
   position: relative;
   z-index: 1;
   gap: 14px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
 }
 
 .ghost-card {
   opacity: 0.3;
+}
+
+@media (max-width: 640px) {
+  .card-stack {
+    flex-flow: column nowrap;
+    align-items: flex-start;
+    height: 100%;
+    padding: 118px 16px 88px;
+    gap: 12px;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
 }
 </style>
