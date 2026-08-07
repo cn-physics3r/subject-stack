@@ -17,7 +17,7 @@
 </template>
 
 <script setup>
-import { ref, onUnmounted } from 'vue'
+import { ref, nextTick, onUnmounted } from 'vue'
 import draggable from 'vuedraggable'
 import CardItem from './CardItem.vue'
 import { useAnimationDuration } from '../composables/useAnimationDuration'
@@ -40,28 +40,19 @@ const DRAG_CLICK_GUARD_MS = 100
 
 function cancelActiveAnim() {
   if (!activeAnim) return
-  const anim = activeAnim
-  cancelAnimationFrame(anim.raf)
-  if (anim.targetEl && anim.toH != null) {
-    const prevBody = anim.targetEl.querySelector('.card-body')
-    if (prevBody) prevBody.style.height = anim.toH + 'px'
-  }
-  anim.targets.forEach(({ el }) => {
-    el.style.transition = ''
-    el.style.transform = ''
-  })
+  const transition = activeAnim
   activeAnim = null
+  transition.skipTransition()
   isAnimating.value = false
 }
 
 onUnmounted(() => {
-  if (activeAnim) cancelAnimationFrame(activeAnim.raf)
+  cancelActiveAnim()
   if (suppressTimer) clearTimeout(suppressTimer)
 })
 
 function onDragStart() {
   cancelActiveAnim()
-  getCards().forEach(el => { el.style.transition = ''; el.style.transform = '' })
 }
 
 function scheduleSuppressRelease() {
@@ -83,104 +74,6 @@ function getCards() {
   return [...container.querySelectorAll('.card')]
 }
 
-function captureRects() {
-  return getCards().map(el => el.getBoundingClientRect())
-}
-
-function easeInOut(t) {
-  return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2
-}
-
-function measureFinalRects(targetEl, finalBodyHeight) {
-  const els = getCards()
-  const body = targetEl.querySelector('.card-body')
-  const container = stackRef.value?.$el
-  if (!body || !container) return []
-
-  const savedHeight = body.style.height
-  body.style.height = finalBodyHeight + 'px'
-  void container.offsetHeight
-
-  const rects = els.map(el => el.getBoundingClientRect())
-
-  body.style.height = savedHeight
-  void container.offsetHeight
-
-  return rects
-}
-
-function animateHeightAndFLIP(targetEl, fromH, toH, prevRects, finalRects) {
-  const els = getCards()
-  const body = targetEl.querySelector('.card-body')
-  if (!body) return
-
-  if (activeAnim) cancelActiveAnim()
-
-  const duration = animDuration.value
-  const start = performance.now()
-  const targets = []
-
-  els.forEach((el, i) => {
-    const prev = prevRects[i]
-    const final = finalRects[i]
-    if (!prev || !final) return
-    if (Math.abs(final.left - prev.left) < 1 && Math.abs(final.top - prev.top) < 1) return
-    el.style.transition = 'none'
-    targets.push({
-      el,
-      prevLeft: prev.left,
-      prevTop: prev.top,
-      finalLeft: final.left,
-      finalTop: final.top,
-      currentTx: 0,
-      currentTy: 0
-    })
-  })
-
-  const container = stackRef.value?.$el
-
-  isAnimating.value = true
-  body.style.height = fromH + 'px'
-  void container.offsetHeight
-
-  function frame(now) {
-    const t = Math.min((now - start) / duration, 1)
-    const e = easeInOut(t)
-    body.style.height = (fromH + (toH - fromH) * e) + 'px'
-    void container.offsetHeight
-
-    const currentRects = targets.map(({ el }) => el.getBoundingClientRect())
-
-    targets.forEach((tg, i) => {
-      const desiredLeft = tg.prevLeft + (tg.finalLeft - tg.prevLeft) * e
-      const desiredTop = tg.prevTop + (tg.finalTop - tg.prevTop) * e
-      const cur = currentRects[i]
-      const naturalLeft = cur.left - tg.currentTx
-      const naturalTop = cur.top - tg.currentTy
-      tg.currentTx = desiredLeft - naturalLeft
-      tg.currentTy = desiredTop - naturalTop
-    })
-
-    targets.forEach((tg) => {
-      tg.el.style.transform = `translate(${tg.currentTx}px, ${tg.currentTy}px)`
-    })
-
-    if (t < 1) {
-      activeAnim.raf = requestAnimationFrame(frame)
-    } else {
-      isAnimating.value = false
-      body.style.height = toH + 'px'
-      targets.forEach(({ el }) => {
-        el.style.transition = ''
-        el.style.transform = ''
-      })
-      activeAnim = null
-    }
-  }
-
-  activeAnim = { raf: requestAnimationFrame(frame), targetEl, toH, targets }
-}
-
 function toggleExpand(id) {
   if (suppressClick) return
   const card = cards.value.find(c => c.id === id)
@@ -197,21 +90,44 @@ function toggleExpand(id) {
 
   cancelActiveAnim()
 
-  const prevRects = captureRects()
-  const targetHeight = inner.scrollHeight
-  const currentHeight = body.offsetHeight
+  const willExpand = !card.expanded
+  const finalHeight = willExpand ? inner.scrollHeight : 0
 
-  if (card.expanded) {
-    card.expanded = false
-    const finalRects = measureFinalRects(targetEl, 0)
-    animateHeightAndFLIP(targetEl, currentHeight, 0, prevRects, finalRects)
-  } else {
-    card.expanded = true
-    const finalRects = measureFinalRects(targetEl, targetHeight)
-    animateHeightAndFLIP(targetEl, currentHeight, targetHeight, prevRects, finalRects)
-  }
+  document.documentElement.style.setProperty('--card-animation-duration', `${animDuration.value}ms`)
+  isAnimating.value = true
+
+  const transition = document.startViewTransition(async () => {
+    card.expanded = willExpand
+    body.style.height = finalHeight + 'px'
+    await nextTick()
+  })
+
+  activeAnim = transition
+  transition.finished.then(
+    () => finishTransition(transition),
+    () => finishTransition(transition)
+  )
+}
+
+function finishTransition(transition) {
+  if (activeAnim !== transition) return
+  activeAnim = null
+  isAnimating.value = false
 }
 </script>
+
+<style>
+::view-transition {
+  pointer-events: none;
+}
+
+::view-transition-group(*),
+::view-transition-old(*),
+::view-transition-new(*) {
+  animation-duration: var(--card-animation-duration, 350ms);
+  animation-timing-function: cubic-bezier(0.455, 0.03, 0.515, 0.955);
+}
+</style>
 
 <style scoped>
 .card-stack {

@@ -30,12 +30,15 @@ pnpm test:e2e  # 使用系统 Chrome 运行 Playwright 回归测试
 ### 组件间动画时长联动（composable provide/inject）
 `App.vue` 在 `<script setup>` 中调用 `createAnimationState()`，通过 Vue 的 `provide` 向子孙组件注入共享的 `duration` ref 和 `setDuration` 方法。各子组件通过 `useAnimationDuration()` composable 以 `inject` 获取同一份状态——**这是一个基于 Vue DI 的隐式跨组件通信通道**，没有用 props/eventBus。注：`isAnimating` 为 `CardStack` 局部状态，通过 prop 传给 `CardItem`，不在此 composable 中共享。
 
-### FLIP 展开/收起动画（CardStack.vue）
-点击卡片标题触发展开/收起时，下方卡片会平滑滑到新位置。`toggleExpand` 手动实现了 FLIP：
-1. `captureRects()` 记录所有卡片的当前位置
-2. `measureFinalRects()` 临时将 body 高度设为目标值、强制 reflow、读取最终位置后恢复
-3. `animateHeightAndFLIP()` 用 `requestAnimationFrame` 同时驱动 body 高度补间和卡片 transform 位移补偿
-4. 动画未完成时再次触发会先 `cancelActiveAnim()`，将上一个 body 强制跳到终态并清理残留 transform，然后开新动画（拖拽开始时也会调用该共享函数）
+### View Transition 展开/收起动画（CardStack.vue）
+点击卡片标题触发展开/收起时，下方卡片会平滑滑到新位置。实现基于同文档 View Transition：
+1. `CardItem` 为每张卡片设置唯一的 `view-transition-name`
+2. `toggleExpand` 在 `document.startViewTransition()` 回调中一次性提交 `expanded` 状态和 body 最终高度
+3. 浏览器捕获旧、新布局并通过 CSS 动画过渡，不在 JavaScript 中逐帧读取布局或写入 transform
+4. 动画时长通过根元素 CSS 变量 `--card-animation-duration` 与共享 `duration` 联动
+5. 动画未完成时再次触发或开始拖拽会调用 `cancelActiveAnim()`，通过 `skipTransition()` 立即结束旧过渡
+
+目标浏览器保证支持 View Transition API，代码不保留旧版浏览器降级路径。
 
 ### 拖拽与点击的隔离
 拖拽手柄 `.drag-handle` 上有 `@click.stop` 阻止冒泡。此外 `onDragEnd` 后置 `suppressClick = true`，100ms 后解除——**拖拽松手时常会伴随一个 click 事件**，这个 suppressClick 防止该 click 误触发卡片展开。如果修改拖拽或点击逻辑，这个机制容易被遗漏。

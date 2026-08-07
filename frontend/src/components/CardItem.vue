@@ -1,5 +1,8 @@
 <template>
-  <div class="card">
+  <div
+    class="card"
+    :style="{ viewTransitionName: `card-${card.id}` }"
+  >
     <button
       type="button"
       class="card-header"
